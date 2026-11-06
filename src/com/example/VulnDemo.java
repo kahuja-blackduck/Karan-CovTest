@@ -36,8 +36,9 @@ public class VulnDemo {
     }
 // 4. Resource leak (RESOURCE_LEAK): stream is never closed
     public static int readFirstByte(String path) throws IOException {
-        FileInputStream in = new FileInputStream(path);
+        try (FileInputStream in = new FileInputStream(path)){
         return in.read();
+} 
     }
 
     public static void main(String[] args) throws Exception {
