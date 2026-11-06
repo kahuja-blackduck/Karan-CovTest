@@ -1,0 +1,48 @@
+name: Coverity Scan
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:        # lets you run it manually from the Actions tab
+
+jobs:
+  coverity:
+    runs-on: [self-hosted, macOS]
+    env:
+      COV_HOME: /Applications/cov-analysis-macos-arm-2026.9.0
+      COV_URL: http://sdc-tam-kahuja.bd.internal:8080
+      COV_STREAM: Karan-CovTest-main
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java and Coverity on PATH
+        run: |
+          echo "JAVA_HOME=$COV_HOME/jdk26" >> $GITHUB_ENV
+          echo "$COV_HOME/jdk26/bin" >> $GITHUB_PATH
+          echo "$COV_HOME/bin" >> $GITHUB_PATH
+
+      - name: Verify tools
+        run: |
+          java -version
+          coverity --version
+
+      - name: Capture (buildless)
+        run: |
+          rm -rf idir
+          coverity capture --project-dir . --dir idir --disable-build-command-inference
+
+      - name: Analyze (cov-analyze)
+        run: cov-analyze --dir idir --all --webapp-security
+
+      - name: Commit results to Coverity Connect
+        env:
+          COV_USER: ${{ secrets.COV_USER }}
+          COVERITY_PASSPHRASE: ${{ secrets.COVERITY_PASSPHRASE }}
+        run: |
+          cov-commit-defects --dir idir \
+            --url "$COV_URL" \
+            --stream "$COV_STREAM" \
+            --user "$COV_USER" \
+            --description "GitHub Actions run ${{ github.run_number }} (${{ github.sha }})"
